@@ -1,7 +1,7 @@
 import CBotConfig from "./modules/CBotConfig.js";
 import GameUtils from "./modules/GameUtils.js";
 import { sleep } from "../modules/utils.js";
-import { GAME_STATUS_PLAYING } from "../modules/game-constants.js";
+import { GAME_STATUS_PLAYING, TILE_PIT } from "../modules/game-constants.js";
 
 // CBot class is the main class for the bot.
 // The bot algorithm is implemented in the playGame() method.
@@ -11,15 +11,16 @@ export default class CBot extends CBotConfig {
   constructor(app, url, ckey, mode, i) {
     super(app, url, ckey, mode, i);
     this.gameUtils = new GameUtils();
+
+    this.strategy = "ryo";
   }
 
   // Main game loop
   async playGame() {
     while (this.game.state.status === GAME_STATUS_PLAYING) {
       if (this.game.players.bearer.is_player_turn) {
-        // Develop your own bot algorithm!
-        await this.castRandomSkills();
-        await this.makeRandomMove();
+        await this.castSkills();
+        await this.makeMove();
       } else {
         await sleep(1000);
         this.game = await this.gameAPI.check(this.ckey);
@@ -27,15 +28,160 @@ export default class CBot extends CBotConfig {
     }
   }
 
-  async makeRandomMove() {
-    const move = this.gameUtils.getRandomMove(this.game);
-
+  async makeMove() {
     if (this.game.players.bearer.is_player_turn) {
-      this.game = await this.gameAPI.move(this.ckey, move?.x, move?.y);
+      let move = this.gameUtils.getRandomMove(this.game);
+
+      const ryo = this.gameUtils.findSpecialAgent(1, this.game);
+      const ripper = this.gameUtils.findSpecialAgent(4, this.game);
+      const buzz = this.gameUtils.findSpecialAgent(5, this.game);
+
+      const exit = this.gameUtils.getClosestExit(this.game);
+
+      const opponentClass = this.game?.players?.opponent?.codyfighter?.class;
+
+      const isHunter = opponentClass === "HUNTER";
+
+      const isHunterNearby = this.gameUtils.isNearby(
+        this.game?.players?.bearer?.position,
+        this.game?.players?.opponent?.position,
+        3
+      );
+
+      const isRipperNearby = this.gameUtils.isNearby(
+        this.game.players.bearer?.position,
+        ripper?.position,
+        3
+      );
+
+      const isRyoCloser = this.gameUtils.isCloser(
+        this.game?.players?.bearer?.position,
+        ryo?.position,
+        exit
+      );
+
+      const isOpponentCloserToExit = this.gameUtils.isCloser(
+        exit,
+        this.game?.players?.opponent?.position,
+        this.game?.players?.bearer?.position
+      );
+
+      const avoidRipper = () => {
+        move = this.gameUtils.getFarthestDistanceMove(
+          ripper?.position,
+          this.game
+        );
+
+        console.log("💀 Avoiding Ripper");
+      };
+
+      const avoidHunter = () => {
+        move = this.gameUtils.getFarthestDistanceMove(
+          this.game?.players?.opponent?.position,
+          this.game
+        );
+
+        console.log("🏹 Avoiding Hunter");
+      };
+
+      const goToExit = () => {
+        move = this.gameUtils.getShortestDistanceMove([exit], this.game);
+
+        console.log("❎ Finding Exit");
+      };
+
+      const goToRyo = () => {
+        if (exit && !isRyoCloser && !isOpponentCloserToExit) return goToExit();
+
+        move = this.gameUtils.getShortestDistanceMove(
+          [ryo?.position],
+          this.game
+        );
+
+        console.log("🐽 Seeking Ryo");
+      };
+
+      const goRandom = () => {
+        move = this.gameUtils.getRandomMove(this.game);
+
+        console.log("🎲 Going random");
+      };
+
+      const chaseOpponent = () => {
+        move = this.gameUtils.getShortestDistanceMove(
+          [this.game.players.opponent.position],
+          this.game
+        );
+
+        console.log("⚔ Chasing opponent");
+      };
+
+      const stay = () => {
+        move = this.gameUtils.getShortestDistanceMove(
+          [this.game.players.bearer.position],
+          this.game
+        );
+
+        console.log("🏖 Just chilling");
+      };
+
+      if (ripper && isRipperNearby) {
+        this.strategy = "ripper";
+
+        avoidRipper();
+
+        return (this.game = await this.gameAPI.move(
+          this.ckey,
+          move?.x,
+          move?.y
+        ));
+      }
+
+      if (isHunter && isHunterNearby) {
+        this.strategy = "hunter";
+
+        avoidHunter();
+
+        return (this.game = await this.gameAPI.move(
+          this.ckey,
+          move?.x,
+          move?.y
+        ));
+      }
+
+      if (ryo && buzz) {
+        this.strategy = "ryo";
+
+        goToRyo();
+
+        return (this.game = await this.gameAPI.move(
+          this.ckey,
+          move?.x,
+          move?.y
+        ));
+      }
+
+      if (exit) {
+        this.strategy = "exit";
+
+        goToExit();
+
+        return (this.game = await this.gameAPI.move(
+          this.ckey,
+          move?.x,
+          move?.y
+        ));
+      }
+
+      this.strategy = "stay";
+
+      stay();
+
+      return (this.game = await this.gameAPI.move(this.ckey, move?.x, move?.y));
     }
   }
 
-  async castRandomSkills() {
+  async castSkills() {
     for (const skill of this.game.players.bearer.skills) {
       const hasEnoughEnergy =
         skill.cost <= this.game.players.bearer.stats.energy;
@@ -47,14 +193,76 @@ export default class CBot extends CBotConfig {
       )
         continue;
 
-      const target = this.gameUtils.getRandomTarget(skill.possible_targets);
+      const exitPos = this.gameUtils.getClosestExit(this.game);
+      const ryoPos = this.gameUtils.findSpecialAgent(1, this.game)?.position;
+      const ripperPos = this.gameUtils.findSpecialAgent(4, this.game)?.position;
+      const opponentPos = this.game?.players?.opponent?.position;
 
-      this.game = await this.gameAPI.cast(
-        this.ckey,
-        skill.id,
-        target?.x,
-        target?.y
+      const pitHoles = this.gameUtils.findPits(this.game);
+
+      const possibleTargets = skill.possible_targets.filter(
+        (target) =>
+          !pitHoles.some((hole) => hole.x === target.x && hole.y === target.y)
       );
+
+      let bestTarget;
+
+      switch (this.strategy) {
+        case "exit":
+          bestTarget = this.gameUtils.getTargetPosition(
+            possibleTargets,
+            exitPos
+          );
+          break;
+
+        case "ryo":
+          bestTarget = this.gameUtils.getTargetPosition(
+            possibleTargets,
+            ryoPos
+          );
+          break;
+
+        case "ripper":
+          bestTarget = this.gameUtils.getTargetPosition(
+            possibleTargets,
+            ripperPos,
+            false
+          );
+          break;
+
+        case "hunter":
+          bestTarget = this.gameUtils.getTargetPosition(
+            possibleTargets,
+            opponentPos,
+            false
+          );
+          break;
+
+        case "stay":
+          bestTarget = null;
+
+        default:
+          bestTarget = null;
+      }
+
+      const target = bestTarget;
+
+      if (!target) continue;
+
+      if (
+        skill.possible_targets.some(
+          (t) => t.x === target?.x && t.y === target?.y
+        )
+      ) {
+        this.game = await this.gameAPI.cast(
+          this.ckey,
+          skill.id,
+          target?.x,
+          target?.y
+        );
+
+        console.log(`⚡️ Casting ${skill.name}`);
+      }
     }
   }
 }
