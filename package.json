@@ -1,17 +1,13 @@
 {
-  "name": "codyfight-bot",
+  "name": "scout-bot",
   "version": "1.0.0",
-  "description": "Codyfight Bot",
+  "description": "Codyfight Scout Bot",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
     "start": "node src/index.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/codyfight/codyfighter-node.js.git"
-  },
-  "author": "Codyfight",
+  "author": "Vinimart",
   "bugs": {
     "url": "https://github.com/codyfight/codyfighter-node.js/issues"
   },

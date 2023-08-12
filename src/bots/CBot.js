@@ -45,7 +45,7 @@ export default class CBot extends CBotConfig {
       const isHunterNearby = this.gameUtils.isNearby(
         this.game?.players?.bearer?.position,
         this.game?.players?.opponent?.position,
-        3
+        2
       );
 
       const isRipperNearby = this.gameUtils.isNearby(
@@ -72,7 +72,7 @@ export default class CBot extends CBotConfig {
           this.game
         );
 
-        console.log("💀 Avoiding Ripper");
+        console.log(`${this.getBotName()} - 💀 Avoiding Ripper`);
       };
 
       const avoidHunter = () => {
@@ -81,30 +81,22 @@ export default class CBot extends CBotConfig {
           this.game
         );
 
-        console.log("🏹 Avoiding Hunter");
+        console.log(`${this.getBotName()} - 🏹 Avoiding Hunter`);
       };
 
       const goToExit = () => {
         move = this.gameUtils.getShortestDistanceMove([exit], this.game);
 
-        console.log("❎ Finding Exit");
+        console.log(`${this.getBotName()} - ❎ Finding Exit`);
       };
 
       const goToRyo = () => {
-        if (exit && !isRyoCloser && !isOpponentCloserToExit) return goToExit();
-
         move = this.gameUtils.getShortestDistanceMove(
           [ryo?.position],
           this.game
         );
 
-        console.log("🐽 Seeking Ryo");
-      };
-
-      const goRandom = () => {
-        move = this.gameUtils.getRandomMove(this.game);
-
-        console.log("🎲 Going random");
+        console.log(`${this.getBotName()} - 🐽 Seeking Ryo`);
       };
 
       const chaseOpponent = () => {
@@ -113,7 +105,7 @@ export default class CBot extends CBotConfig {
           this.game
         );
 
-        console.log("⚔ Chasing opponent");
+        console.log(`${this.getBotName()} - ⚔ Chasing opponent`);
       };
 
       const stay = () => {
@@ -122,7 +114,7 @@ export default class CBot extends CBotConfig {
           this.game
         );
 
-        console.log("🏖 Just chilling");
+        console.log(`${this.getBotName()} - 🏖 Just chilling`);
       };
 
       if (ripper && isRipperNearby) {
@@ -261,7 +253,7 @@ export default class CBot extends CBotConfig {
           target?.y
         );
 
-        console.log(`⚡️ Casting ${skill.name}`);
+        console.log(`${this.getBotName()} - ⚡️ Casting ${skill.name}`);
       }
     }
   }

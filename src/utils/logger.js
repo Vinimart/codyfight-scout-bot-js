@@ -20,6 +20,4 @@ export default function log(message, type = "info") {
       chalk.hex(hex[type])(`[${type.toUpperCase()}] ${message}`)
     );
   }
-
-  console.log(chalk[color](`[${type.toUpperCase()}] ${message}`));
 }
