@@ -141,7 +141,7 @@ export default class CBot extends CBotConfig {
         ));
       }
 
-      if (ryo && buzz) {
+      if (ryo) {
         this.strategy = "ryo";
 
         goToRyo();

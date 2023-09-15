@@ -132,8 +132,24 @@ export default class GameUtils {
   getShortestDistanceMove(targets, game) {
     let distances = [];
 
+    const pits = this.findPits(game);
+
+    const possibleMoves = game.players.bearer.possible_moves.filter(
+      (position) => {
+        if (position?.direction === "stay") return true;
+
+        for (const pit of pits) {
+          if (position?.x === pit?.x && position?.y === pit?.y) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+    );
+
     for (const position of targets) {
-      for (const possibleMove of game.players.bearer.possible_moves) {
+      for (const possibleMove of possibleMoves) {
         const distance = this.distance(
           possibleMove?.x,
           possibleMove?.y,
@@ -145,25 +161,13 @@ export default class GameUtils {
       }
     }
 
-    const pits = this.findPits(game);
-
-    distances = distances.filter((distance) => {
-      for (const pit of pits) {
-        if (distance?.move?.x === pit?.x && distance?.move?.y === pit?.y) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
     distances.sort((a, b) => a.distance - b.distance);
 
-    if (this.isStaying(distances[0].move, game)) {
+    if (this.isStaying(distances[0]?.move, game)) {
       return this.getRandomMove(game);
     }
 
-    return distances[0].move;
+    return distances[0]?.move;
   }
 
   getFarthestDistanceMove(position, game) {
@@ -173,9 +177,11 @@ export default class GameUtils {
     const pits = this.findPits(game);
 
     const possibleMoves = game.players.bearer.possible_moves.filter(
-      (distance) => {
+      (position) => {
+        if (position?.direction === "stay") return true;
+
         for (const pit of pits) {
-          if (distance?.x === pit?.x && distance?.y === pit?.y) {
+          if (position?.x === pit?.x && position?.y === pit?.y) {
             return false;
           }
         }
